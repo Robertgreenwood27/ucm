@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UCM Credit Request Formatter</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #171a21;
+      --field: #20242d;
+      --border: #343a46;
+      --text: #f4f6f8;
+      --muted: #a7afbd;
+      --accent: #4f8cff;
+      --accent-hover: #3c78e8;
+      --danger: #ff6b6b;
+      --success: #65d69e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 18px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .container {
+      width: min(720px, 100%);
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 1.55rem;
+    }
+
+    .subtitle {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .card {
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .field { margin-bottom: 12px; }
+
+    label, legend {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .optional {
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+      background: var(--field);
+      color: var(--text);
+      font: inherit;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(79, 140, 255, 0.18);
+    }
+
+    textarea {
+      min-height: 66px;
+      resize: vertical;
+      line-height: 1.35;
+    }
+
+    fieldset {
+      margin: 0 0 12px;
+      padding: 0;
+      border: 0;
+    }
+
+    .call-row {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr auto;
+      gap: 8px;
+      align-items: end;
+      margin-bottom: 8px;
+    }
+
+    .mini-label {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .add-button {
+      background: #283247;
+      color: #cfe0ff;
+    }
+
+    .add-button:hover { background: #313e58; }
+
+    .remove-button {
+      width: 38px;
+      background: #3b2227;
+      color: var(--danger);
+      font-size: 1rem;
+    }
+
+    .copy-button {
+      width: 100%;
+      margin-top: 2px;
+      padding: 11px 14px;
+      background: var(--accent);
+      color: white;
+      font-size: 0.98rem;
+    }
+
+    .copy-button:hover { background: var(--accent-hover); }
+
+    .status {
+      min-height: 20px;
+      margin-top: 9px;
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .status.success { color: var(--success); }
+    .status.error { color: var(--danger); }
+
+    @media (max-width: 560px) {
+      body { padding: 10px; }
+      .card { padding: 13px; }
+      .call-row { grid-template-columns: 1fr; }
+      .remove-button { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>UCM Credit Request Formatter</h1>
+    <p class="subtitle">Complete the fields and copy the formatted ticket.</p>
+
+    <section class="card">
+      <form id="creditForm" novalidate>
+        <div class="field">
+          <label for="creditType">Credit type</label>
+          <select id="creditType" required>
+            <option value="">Select a credit type</option>
+            <option value="Policy">Policy</option>
+            <option value="Company Error">Company error</option>
+            <option value="Courtesy Credit">Courtesy credit</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="otherAccounts">Other account numbers <span class="optional">(if needed)</span></label>
+          <textarea id="otherAccounts" placeholder="Enter related account numbers"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="dates">Dates</label>
+          <textarea id="dates" required placeholder="Enter relevant dates and details"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="math">Math</label>
+          <textarea id="math" required></textarea>
+        </div>
+
+        <fieldset>
+          <legend>Call summary references <span class="optional">(if applicable)</span></legend>
+          <div id="callReferences"></div>
+          <button type="button" id="addCallButton" class="add-button">+ Add call reference</button>
+        </fieldset>
+
+        <div class="field">
+          <label for="comments">Comments</label>
+          <textarea id="comments" required placeholder="Enter supporting details"></textarea>
+        </div>
+
+        <button type="submit" class="copy-button">Format and copy to clipboard</button>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const form = document.getElementById("creditForm");
+    const callReferences = document.getElementById("callReferences");
+    const addCallButton = document.getElementById("addCallButton");
+    const status = document.getElementById("status");
+
+    function addCallReference(dateValue = "", ucidValue = "") {
+      const row = document.createElement("div");
+      row.className = "call-row";
+
+      const dateGroup = document.createElement("div");
+      const dateLabel = document.createElement("label");
+      dateLabel.className = "mini-label";
+      dateLabel.textContent = "Call date";
+
+      const dateInput = document.createElement("input");
+      dateInput.type = "date";
+      dateInput.className = "call-date";
+      dateInput.value = dateValue;
+
+      dateGroup.append(dateLabel, dateInput);
+
+      const ucidGroup = document.createElement("div");
+      const ucidLabel = document.createElement("label");
+      ucidLabel.className = "mini-label";
+      ucidLabel.textContent = "UCID (if available)";
+
+      const ucidInput = document.createElement("input");
+      ucidInput.type = "text";
+      ucidInput.className = "call-ucid";
+      ucidInput.placeholder = "Enter UCID";
+      ucidInput.value = ucidValue;
+
+      ucidGroup.append(ucidLabel, ucidInput);
+
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "remove-button";
+      removeButton.textContent = "×";
+      removeButton.title = "Remove call reference";
+      removeButton.setAttribute("aria-label", "Remove call reference");
+      removeButton.addEventListener("click", () => row.remove());
+
+      row.append(dateGroup, ucidGroup, removeButton);
+      callReferences.appendChild(row);
+    }
+
+    function cleanText(value) {
+      return value
+        .trim()
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .join("\n");
+    }
+
+    function formatDate(value) {
+      if (!value) return "";
+      const [year, month, day] = value.split("-");
+      return `${month}/${day}/${year}`;
+    }
+
+    function getCallReferences() {
+      const rows = [...callReferences.querySelectorAll(".call-row")];
+      const entries = rows
+        .map((row, index) => {
+          const date = row.querySelector(".call-date").value;
+          const ucid = row.querySelector(".call-ucid").value.trim();
+
+          if (!date && !ucid) return null;
+
+          const parts = [];
+          if (date) parts.push(`Date: ${formatDate(date)}`);
+          if (ucid) parts.push(`UCID: ${ucid}`);
+
+          return `${index + 1}. ${parts.join(" | ")}`;
+        })
+        .filter(Boolean);
+
+      return entries.length ? entries.join("\n") : "None";
+    }
+
+    function buildTicket() {
+      const creditType = document.getElementById("creditType").value;
+      const otherAccounts = cleanText(document.getElementById("otherAccounts").value);
+      const dates = cleanText(document.getElementById("dates").value);
+      const math = cleanText(document.getElementById("math").value);
+      const comments = cleanText(document.getElementById("comments").value);
+
+      return [
+        "UCM CREDIT REQUEST",
+        "------------------",
+        `Credit Type: ${creditType}`,
+        "",
+        "Other Account Number(s):",
+        otherAccounts || "None",
+        "",
+        "Dates:",
+        dates,
+        "",
+        "Math:",
+        math,
+        "",
+        "Call Summary Reference(s):",
+        getCallReferences(),
+        "",
+        "Comments:",
+        comments
+      ].join("\n");
+    }
+
+    function validateForm() {
+      const requiredFields = [
+        document.getElementById("creditType"),
+        document.getElementById("dates"),
+        document.getElementById("math"),
+        document.getElementById("comments")
+      ];
+
+      const missingField = requiredFields.find(field => !field.value.trim());
+
+      if (missingField) {
+        missingField.focus();
+        status.textContent = "Please complete all required fields.";
+        status.className = "status error";
+        return false;
+      }
+
+      return true;
+    }
+
+    async function copyToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+
+      const fallback = document.createElement("textarea");
+      fallback.value = text;
+      fallback.setAttribute("readonly", "");
+      fallback.style.position = "fixed";
+      fallback.style.left = "-9999px";
+      document.body.appendChild(fallback);
+      fallback.select();
+
+      const successful = document.execCommand("copy");
+      fallback.remove();
+
+      if (!successful) throw new Error("Copy command failed.");
+    }
+
+    addCallButton.addEventListener("click", () => addCallReference());
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (!validateForm()) return;
+
+      try {
+        await copyToClipboard(buildTicket());
+        status.textContent = "Formatted ticket copied to clipboard.";
+        status.className = "status success";
+      } catch (error) {
+        console.error(error);
+        status.textContent = "Clipboard access was blocked by the browser.";
+        status.className = "status error";
+      }
+    });
+
+    addCallReference();
+  </script>
+</body>
+</html>
