@@ -169,7 +169,7 @@
       <form id="creditForm" novalidate>
         <div class="field">
           <label for="creditType">Credit type</label>
-          <select id="creditType" required>
+          <select id="creditType">
             <option value="">Select a credit type</option>
             <option value="Policy">Policy</option>
             <option value="Company Error">Company error</option>
@@ -184,12 +184,12 @@
 
         <div class="field">
           <label for="dates">Dates</label>
-          <textarea id="dates" required placeholder="Enter relevant dates and details"></textarea>
+          <textarea id="dates" placeholder="Enter relevant dates and details"></textarea>
         </div>
 
         <div class="field">
           <label for="math">Math</label>
-          <textarea id="math" required></textarea>
+          <textarea id="math" placeholder="Example: $29.99 × 2 months = $59.98"></textarea>
         </div>
 
         <fieldset>
@@ -200,7 +200,7 @@
 
         <div class="field">
           <label for="comments">Comments</label>
-          <textarea id="comments" required placeholder="Enter supporting details"></textarea>
+          <textarea id="comments" placeholder="Enter supporting details"></textarea>
         </div>
 
         <button type="submit" class="copy-button">Format and copy to clipboard</button>
@@ -290,7 +290,7 @@
         })
         .filter(Boolean);
 
-      return entries.length ? entries.join("\n") : "None";
+      return entries.join("\n");
     }
 
     function buildTicket() {
@@ -298,48 +298,21 @@
       const otherAccounts = cleanText(document.getElementById("otherAccounts").value);
       const dates = cleanText(document.getElementById("dates").value);
       const math = cleanText(document.getElementById("math").value);
+      const callSummaryReferences = getCallReferences();
       const comments = cleanText(document.getElementById("comments").value);
 
-      return [
-        "UCM CREDIT REQUEST",
-        "------------------",
-        `Credit Type: ${creditType}`,
-        "",
-        "Other Account Number(s):",
-        otherAccounts || "None",
-        "",
-        "Dates:",
-        dates,
-        "",
-        "Math:",
-        math,
-        "",
-        "Call Summary Reference(s):",
-        getCallReferences(),
-        "",
-        "Comments:",
-        comments
-      ].join("\n");
-    }
+      const sections = [];
 
-    function validateForm() {
-      const requiredFields = [
-        document.getElementById("creditType"),
-        document.getElementById("dates"),
-        document.getElementById("math"),
-        document.getElementById("comments")
-      ];
-
-      const missingField = requiredFields.find(field => !field.value.trim());
-
-      if (missingField) {
-        missingField.focus();
-        status.textContent = "Please complete all required fields.";
-        status.className = "status error";
-        return false;
+      if (creditType) sections.push(`Credit Type: ${creditType}`);
+      if (otherAccounts) sections.push(`Other Account Number(s):\n${otherAccounts}`);
+      if (dates) sections.push(`Dates:\n${dates}`);
+      if (math) sections.push(`Math:\n${math}`);
+      if (callSummaryReferences) {
+        sections.push(`Call Summary Reference(s):\n${callSummaryReferences}`);
       }
+      if (comments) sections.push(`Comments:\n${comments}`);
 
-      return true;
+      return sections.join("\n\n");
     }
 
     async function copyToClipboard(text) {
@@ -366,7 +339,6 @@
 
     form.addEventListener("submit", async event => {
       event.preventDefault();
-      if (!validateForm()) return;
 
       try {
         await copyToClipboard(buildTicket());
